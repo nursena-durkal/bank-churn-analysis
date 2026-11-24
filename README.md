@@ -82,6 +82,36 @@ Retaining an existing bank customer is usually cheaper than acquiring a new one.
 
 **Interpretation:** The model ranks customers by risk reasonably well (ROC-AUC 0.775). However, at the 0.50 threshold it catches only 18.7% of customers who actually left (331 missed churners). Because the data is imbalanced (20% churn), accuracy (80.8%) is misleading: a model that flags nobody as churn would still reach about 80% accuracy. The model is therefore better suited for **prioritizing customers by risk** than for predicting who will definitely leave.
 
+### Threshold analysis
+
+The default 0.50 threshold is not the only option. Evaluating other thresholds on the test set shows the precision-recall trade-off:
+
+| Threshold | Precision | Recall | F1-score |
+|---|---|---|---|
+| 0.20 | 37.6% | 72.0% | 49.4% |
+| 0.25 | 43.1% | 60.2% | 50.2% |
+| 0.30 | 48.5% | 51.6% | 50.0% |
+| 0.35 | 51.5% | 41.5% | 46.0% |
+| 0.40 | 53.1% | 31.2% | 39.3% |
+| 0.45 | 54.0% | 24.8% | 34.0% |
+| 0.50 | 58.9% | 18.7% | 28.4% |
+
+Lowering the threshold from 0.50 to 0.30 raises recall from 18.7% to 51.6% (the model catches about half of the churners instead of one in five) while precision drops from 58.9% to 48.5%. The right threshold depends on the cost of a retention offer compared with the cost of losing a customer.
+
+### What drives churn?
+
+Logistic Regression coefficients (numeric features are standardized, so magnitudes are comparable; positive values increase churn probability):
+
+| Feature | Coefficient | Reading |
+|---|---|---|
+| Country: Germany | +0.82 | Higher churn than France |
+| Age | +0.74 | Older customers churn more |
+| Gender: Male | -0.52 | Female customers churn more |
+| Active member | -0.52 | Active members churn less |
+| Balance | +0.16 | Higher balance, slightly higher churn |
+
+These are associations in this dataset, not proof of cause.
+
 ### `churn_probability` in the dashboard
 
 The risk scores in the dashboard were generated for **all 10,000 customers** using the trained model's `predict_proba(X)[:, 1]` and added to `customer_churn_powerbi.csv`. Since about 80% of customers were part of the model's training data, these scores are also computed on training data. The model's true performance is reported above on the held-out test set only.
@@ -126,16 +156,15 @@ A customer-level table with country, gender, age, balance, number of products, m
 
 - **Correlation is not causation.** The findings show who leaves, not why.
 - **Static snapshot.** With no time dimension, churn over time could not be analyzed.
-- **Low model recall (0.187).** The default 0.50 threshold misses most churners.
+- **Low model recall at the default threshold (0.187).** Lowering the threshold to 0.30 raises recall to 0.516 at the cost of precision.
 - **Small groups:** The 3-4 product and 200K+ balance groups have small samples.
 - **Kaggle dataset.** It is unclear whether the data comes from a real bank; results apply to this dataset.
 
 ## 9. Next Steps
 
-- Lower the decision threshold (e.g., 0.30) and examine the precision-recall trade-off
+- Choose the decision threshold using the cost of a retention offer versus the cost of a lost customer
 - Retrain with `class_weight="balanced"`
 - Compare other models such as Random Forest and Gradient Boosting
-- Interpret coefficients to show which features drive churn the most
 - Repeat the analysis in SQL
 
 ## 10. Repository Structure

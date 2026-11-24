@@ -82,6 +82,36 @@ Bir bankada mevcut müşteriyi elde tutmak, yeni müşteri kazanmaktan genellikl
 
 **Yorum:** Model, müşterileri risklerine göre sıralamada makul bir performans gösteriyor (ROC-AUC 0,775). Ancak 0,50 eşiğinde ayrılan müşterilerin yalnızca %18,7'sini yakalıyor (331 kaçırılmış churn). Veri dengesiz (%20 churn) olduğu için accuracy (%80,8) yanıltıcıdır: hiçbir müşteriyi churn olarak işaretlemeyen bir model bile yaklaşık %80 accuracy alırdı. Bu nedenle model, "kesin ayrılacak" tahmini yapmaktan çok, **riske göre öncelik sıralaması** için kullanılmalıdır.
 
+### Eşik analizi
+
+Varsayılan 0,50 eşiği tek seçenek değil. Test setinde farklı eşikler denendiğinde precision-recall dengesi şöyle değişiyor:
+
+| Eşik | Precision | Recall | F1-score |
+|---|---|---|---|
+| 0,20 | %37,6 | %72,0 | %49,4 |
+| 0,25 | %43,1 | %60,2 | %50,2 |
+| 0,30 | %48,5 | %51,6 | %50,0 |
+| 0,35 | %51,5 | %41,5 | %46,0 |
+| 0,40 | %53,1 | %31,2 | %39,3 |
+| 0,45 | %54,0 | %24,8 | %34,0 |
+| 0,50 | %58,9 | %18,7 | %28,4 |
+
+Eşiği 0,50'den 0,30'a düşürmek recall'u %18,7'den %51,6'ya çıkarıyor (model ayrılanların beşte birini değil yaklaşık yarısını yakalıyor), precision ise %58,9'dan %48,5'e düşüyor. Doğru eşik, bir elde tutma teklifinin maliyeti ile müşteri kaybının maliyetinin karşılaştırılmasına bağlıdır.
+
+### Churn'ü ne belirliyor?
+
+Logistic Regression katsayıları (sayısal değişkenler standartlaştırıldığı için büyüklükler karşılaştırılabilir; pozitif değer churn olasılığını artırır):
+
+| Özellik | Katsayı | Yorum |
+|---|---|---|
+| Ülke: Almanya | +0,82 | Fransa'ya göre daha yüksek churn |
+| Yaş | +0,74 | Yaşlı müşteriler daha çok ayrılıyor |
+| Cinsiyet: Erkek | -0,52 | Kadın müşteriler daha çok ayrılıyor |
+| Aktif üye | -0,52 | Aktif üyeler daha az ayrılıyor |
+| Bakiye | +0,16 | Bakiye arttıkça churn hafifçe artıyor |
+
+Bunlar bu veri setindeki ilişkilerdir, neden-sonuç kanıtı değildir.
+
 ### Dashboard'daki `churn_probability`
 
 Dashboard'daki risk skorları, eğitilen modelle `predict_proba(X)[:, 1]` kullanılarak **tüm 10.000 müşteri** için üretildi ve `customer_churn_powerbi.csv` dosyasına eklendi. Müşterilerin yaklaşık %80'i modelin eğitim verisinde yer aldığından bu skorlar eğitim verisi üzerinde de hesaplanmıştır. Modelin gerçek performansı yukarıda yalnızca ayrılmış test seti üzerinde raporlanmıştır.
@@ -126,16 +156,15 @@ Müşteri bazlı detay tablosu: ülke, cinsiyet, yaş, bakiye, ürün sayısı, 
 
 - **Korelasyon, nedensellik değildir.** Bulgular hangi müşterilerin ayrıldığını gösterir, nedenini göstermez.
 - **Veri statik bir kesit.** Zaman boyutu olmadığı için churn'ün zaman içindeki seyri analiz edilemedi.
-- **Model recall'u düşük (0,187).** Varsayılan 0,50 eşiği churn müşterilerinin çoğunu kaçırıyor.
+- **Varsayılan eşikte model recall'u düşük (0,187).** Eşiği 0,30'a düşürmek recall'u 0,516'ya çıkarıyor, karşılığında precision düşüyor.
 - **Küçük gruplar:** 3-4 ürünlü ve 200K+ bakiyeli müşteri gruplarının örneklemi küçük.
 - **Veri seti Kaggle kaynaklı.** Gerçek bir bankanın verisi olup olmadığı belirsiz; sonuçlar bu veri seti için geçerlidir.
 
 ## 9. Sonraki Adımlar
 
-- Karar eşiğini düşürerek (ör. 0,30) precision-recall dengesini incelemek
+- Karar eşiğini, elde tutma teklifinin maliyeti ile müşteri kaybının maliyetine göre seçmek
 - `class_weight="balanced"` ile modeli yeniden eğitmek
 - Random Forest / Gradient Boosting gibi modelleri karşılaştırmak
-- Katsayıları yorumlayarak hangi özelliklerin churn'ü en çok etkilediğini göstermek
 - Aynı analizi SQL ile tekrarlamak
 
 ## 10. Repo Yapısı
